@@ -1,0 +1,129 @@
+name: Build & Release
+
+# Собирает универсальный (arm64 + x86_64) macOS .app для Barvisor и публикует его:
+#   - На любом push: загружает скачиваемый артефакт в запуск workflow.
+#   - На тегах v*:   дополнительно создаёт GitHub Release с прикреплённым .zip.
+#
+# Нотаризация включается автоматически, если заданы секреты Apple Developer
+# (см. шаг "Detect notarization secrets"). Без них приложение подписывается
+# ad-hoc — получателям нужно один раз обойти Gatekeeper (ПКМ > Открыть).
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: Barvisor
+
+jobs:
+  build:
+    name: Build macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build & assemble .app bundle
+        run: |
+          chmod +x build-app.sh
+          ./build-app.sh --universal
+
+      - name: Detect notarization secrets
+        id: notarize
+        env:
+          APPLE_DEVID_ID: ${{ secrets.APPLE_DEVID_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_DEVID_ID" ] && [ -n "$APPLE_ID" ] \
+             && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Apple notarization secrets not set — the app will be ad-hoc signed. Recipients must right-click > Open the first time."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Re-sign with Developer ID (hardened runtime)
+        if: steps.notarize.outputs.enabled == 'true'
+        env:
+          APPLE_DEVID_ID: ${{ secrets.APPLE_DEVID_ID }}
+        run: |
+          codesign --force --options runtime \
+            --entitlements Resources/Barvisor.entitlements \
+            --sign "$APPLE_DEVID_ID" "build/$APP_NAME.app"
+
+      - name: Notarize & staple
+        if: steps.notarize.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent "build/$APP_NAME.app" "$APP_NAME-notarize.zip"
+          xcrun notarytool submit "$APP_NAME-notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple "build/$APP_NAME.app"
+          rm -f "$APP_NAME-notarize.zip"
+
+      - name: Verify signature
+        run: |
+          codesign --verify --verbose=2 "build/$APP_NAME.app" || true
+          if [ "${{ steps.notarize.outputs.enabled }}" = "true" ]; then
+            xcrun stapler validate "build/$APP_NAME.app"
+          fi
+
+      - name: Read version
+        id: ver
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "build/$APP_NAME.app/Contents/Info.plist")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Package .app into zip
+        run: ditto -c -k --keepParent "build/$APP_NAME.app" "$APP_NAME-${{ steps.ver.outputs.version }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.ver.outputs.version }}-macOS
+          path: ${{ env.APP_NAME }}-${{ steps.ver.outputs.version }}.zip
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          ZIP="$APP_NAME-${{ steps.ver.outputs.version }}.zip"
+
+          # GitHub генерирует notes по .github/release.yml (группирует PR по labels).
+          NOTES=$(gh api \
+            --method POST /repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="$TAG" \
+            --jq '.body' 2>/dev/null || true)
+
+          # Fallback: если автогенерация пуста (нет PR / нет предыдущего тега) — список коммитов.
+          if ! printf '%s' "$NOTES" | grep -Eq '^(## |- |\* )'; then
+            PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+            RANGE="${PREV:+$PREV..}$TAG"
+            NOTES=$(printf '## Что нового\n\n%s' "$(git log --pretty=format:'- %s' $RANGE 2>/dev/null | head -50)")
+          fi
+
+          printf '%s' "$NOTES" > /tmp/release-notes.md
+
+          gh release create "$TAG" "$ZIP" \
+            --title "$TAG" \
+            --notes-file /tmp/release-notes.md \
+            --verify-tag

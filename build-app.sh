@@ -1,13 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_NAME="MenubarVis"
+APP_NAME="Barvisor"
 APP_BUNDLE="build/$APP_NAME.app"
 
-echo "→ Building with SwiftPM…"
-swift build -c release
-
-EXE="$(swift build -c release --show-bin-path)/$APP_NAME"
+if [[ "${1:-}" == "--universal" ]]; then
+  # Универсальный бинарник (arm64 + x86_64) — требует полный Xcode (не только CLT).
+  echo "→ Building universal (arm64 + x86_64) release binary…"
+  swift build -c release --arch arm64 --arch x86_64
+  BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+else
+  echo "→ Building release binary (native arch)…"
+  swift build -c release
+  BIN_PATH="$(swift build -c release --show-bin-path)"
+fi
+EXE="$BIN_PATH/$APP_NAME"
 
 echo "→ Assembling .app bundle…"
 rm -rf "$APP_BUNDLE"
@@ -16,6 +23,9 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 cp "$EXE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp "Resources/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
+
+echo "→ Ad-hoc signing…"
+codesign --force --sign - "$APP_BUNDLE"
 
 echo "✓ Built: $APP_BUNDLE"
 echo "  Run with: open '$APP_BUNDLE'"

@@ -1,0 +1,25 @@
+# Конфиг для автоматических release notes GitHub.
+# Группирует PR по labels в категории. Используется workflow
+# "Build & Release" при создании релиза по тегу v*.
+#
+# Чтобы категория сработала — вешайте соответствующий label на PR:
+#   enhancement / feature → 🚀 Новое
+#   bug / fix             → 🐛 Исправления
+# Прочее попадает в «🛠 Прочее».
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - chore
+  categories:
+    - title: 🚀 Новое
+      labels:
+        - enhancement
+        - feature
+    - title: 🐛 Исправления
+      labels:
+        - bug
+        - fix
+    - title: 🛠 Прочее
+      labels:
+        - '*'
