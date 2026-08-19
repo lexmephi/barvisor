@@ -1,0 +1,9 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj
+DerivedData/
+
+# IDE & tools
+.idea/
+.veai/
