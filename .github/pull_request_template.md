@@ -1,17 +1,17 @@
-## Что делает этот PR
+## What does this PR do?
 
-<!-- Кратко: что поменялось и зачем. 1–3 предложения. -->
+<!-- Briefly: what changed and why. 1–3 sentences. -->
 
-## Тип изменения
+## Change type
 
-<!-- Отметь одно и повесь СООТВЕТСТВУЮЩИЙ LABEL — по нему релиз-нотесы
-     (.github/release.yml) группируют PR в категории. -->
+<!-- Check one and attach the CORRESPONDING LABEL — release notes
+     (.github/release.yml) group PRs into categories by it. -->
 
-- [ ] 🚀 Новое — label `enhancement` или `feature`
-- [ ] 🐛 Исправление — label `bug` или `fix`
-- [ ] 🛠 Прочее (рефакторинг, инфраструктура, зависимости) — без label выше
+- [ ] 🚀 New — label `enhancement` or `feature`
+- [ ] 🐛 Fix — label `bug` or `fix`
+- [ ] 🛠 Other (refactoring, infrastructure, dependencies) — no label above
 
-## Чек-лист
+## Checklist
 
-- [ ] `./build-app.sh` собирается без ошибок
-- [ ] Нечего скрывать из release notes — иначе label `ignore-for-release`
+- [ ] `./build-app.sh` builds without errors
+- [ ] Nothing to hide from release notes — otherwise label `ignore-for-release`

@@ -5,7 +5,7 @@ APP_NAME="Barvisor"
 APP_BUNDLE="build/$APP_NAME.app"
 
 if [[ "${1:-}" == "--universal" ]]; then
-  # Универсальный бинарник (arm64 + x86_64) — требует полный Xcode (не только CLT).
+  # Universal binary (arm64 + x86_64) — requires full Xcode (not just CLT).
   echo "→ Building universal (arm64 + x86_64) release binary…"
   swift build -c release --arch arm64 --arch x86_64
   BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"

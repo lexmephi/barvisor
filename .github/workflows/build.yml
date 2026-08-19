@@ -1,13 +1,5 @@
 name: Build & Release
 
-# Собирает универсальный (arm64 + x86_64) macOS .app для Barvisor и публикует его:
-#   - На любом push: загружает скачиваемый артефакт в запуск workflow.
-#   - На тегах v*:   дополнительно создаёт GitHub Release с прикреплённым .zip.
-#
-# Нотаризация включается автоматически, если заданы секреты Apple Developer
-# (см. шаг "Detect notarization secrets"). Без них приложение подписывается
-# ad-hoc — получателям нужно один раз обойти Gatekeeper (ПКМ > Открыть).
-
 on:
   push:
     branches: [main]
@@ -108,17 +100,17 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           ZIP="$APP_NAME-${{ steps.ver.outputs.version }}.zip"
 
-          # GitHub генерирует notes по .github/release.yml (группирует PR по labels).
+          # GitHub generates notes per .github/release.yml (groups PRs by labels).
           NOTES=$(gh api \
             --method POST /repos/${{ github.repository }}/releases/generate-notes \
             -f tag_name="$TAG" \
             --jq '.body' 2>/dev/null || true)
 
-          # Fallback: если автогенерация пуста (нет PR / нет предыдущего тега) — список коммитов.
+          # Fallback: if auto-generation is empty (no PR / no previous tag) — commit list.
           if ! printf '%s' "$NOTES" | grep -Eq '^(## |- |\* )'; then
             PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
             RANGE="${PREV:+$PREV..}$TAG"
-            NOTES=$(printf '## Что нового\n\n%s' "$(git log --pretty=format:'- %s' $RANGE 2>/dev/null | head -50)")
+            NOTES=$(printf '## What'"'"'s new\n\n%s' "$(git log --pretty=format:'- %s' $RANGE 2>/dev/null | head -50)")
           fi
 
           printf '%s' "$NOTES" > /tmp/release-notes.md

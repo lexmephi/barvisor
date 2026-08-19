@@ -42,7 +42,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let app = NSWorkspace.shared.frontmostApplication
         frontmostApp = app
 
-        let appName = app?.localizedName ?? "Нет активного приложения"
+        let appName = app?.localizedName ?? "No active application"
         let bundleId = app?.bundleIdentifier ?? "—"
         let raw = (bundleId != "—") ? DefaultsController.read(bundleIdentifier: bundleId) : nil
 
@@ -58,11 +58,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if let value = raw {
             currentState = value
             stateTitle = value
-                ? "Меню-бар в фуллскрине: видимый"
-                : "Меню-бар в фуллскрине: скрытый"
+                ? "Menu bar in fullscreen: visible"
+                : "Menu bar in fullscreen: hidden"
         } else {
             currentState = false
-            stateTitle = "Меню-бар в фуллскрине: не задано (по умолч. скрыт)"
+            stateTitle = "Menu bar in fullscreen: not set (hidden by default)"
         }
         let stateItem = NSMenuItem(title: stateTitle, action: nil, keyEquivalent: "")
         stateItem.isEnabled = false
@@ -71,8 +71,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         // Toggle
         let toggleTitle = currentState
-            ? "Скрыть меню-бар в фуллскрине"
-            : "Показать меню-бар в фуллскрине"
+            ? "Hide menu bar in fullscreen"
+            : "Show menu bar in fullscreen"
         let toggle = NSMenuItem(title: toggleTitle, action: #selector(toggleCurrent), keyEquivalent: "")
         toggle.target = self
         toggle.isEnabled = (app != nil)
@@ -80,7 +80,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         // Apply via app restart
-        let restartItem = NSMenuItem(title: "Применить — перезапустить приложение",
+        let restartItem = NSMenuItem(title: "Apply — restart the app",
                                      action: #selector(applyViaRestart), keyEquivalent: "")
         restartItem.target = self
         restartItem.isEnabled = (app != nil)
@@ -88,7 +88,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         // Quit
-        let quit = NSMenuItem(title: "Выход", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
     }
